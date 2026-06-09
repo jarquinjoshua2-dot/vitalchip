@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioSync X1 — Panel Médico-Paciente Intuitivo</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-glow: #0a1118;
+    --card-bg: rgba(22, 30, 41, 0.7);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-main: #ffffff;
+    --text-muted: #94a3b8;
+    --patient-green: #10b981;
+    --doctor-blue: #3b82f6;
+    --amber-glow: #f59e0b;
+    --shadow-3d: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(59, 130, 246, 0.1);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  body {
+    background: radial-gradient(circle at 50% 0%, #111d2a 0%, var(--bg-glow) 70%);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    perspective: 1000px; /* Habilita el entorno 3D */
+    overflow-x: hidden;
+  }
+
+  /* Banner contenedor principal con efecto 3D Flotante */
+  .banner-3d-container {
+    width: 100%;
+    max-width: 900px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 28px;
+    padding: 35px;
+    box-shadow: var(--shadow-3d);
+    transform: rotateX(6deg) rotateY(-2deg);
+    transition: transform 0.5s ease, box-shadow 0.5s ease;
+    position: relative;
+  }
+
+  .banner-3d-container:hover {
+    transform: rotateX(0deg) rotateY(0deg) scale(1.01);
+    box-shadow: 0 35px 60px -10px rgba(0, 0, 0, 0.8), 0 0 50px rgba(16, 185, 129, 0.15);
+  }
+
+  /* Encabezado Inteligente Dual */
+  .banner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+    margin-bottom: 25px;
+  }
+
+  .logo-section h1 {
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-section p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .view-badge {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: var(--doctor-blue);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  /* Grid Principal: Optimizado para comprensión rápida */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 25px;
+    margin-bottom: 25px;
+  }
+
+  /* Tarjetas de Métricas con relieve 3D interno */
+  .metric-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0,0,0,0.2);
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .metric-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px);
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    border-radius: 20px 0 0 20px;
+  }
+
+  .card-glucose::before { background: var(--patient-green); }
+  .card-insulin::before { background: var(--amber-glow); }
+
+  /* Títulos adaptados para Médico (Técnico) y Paciente (Amigable) */
+  .label-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 15px;
+  }
+
+  .patient-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .doctor-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .value-display {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .main-number {
+    font-size: 54px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .card-glucose .main-number { color: var(--patient-green); text-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+  .card-insulin .main-number { color: var(--amber-glow); text-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
+
+  .unit {
+    font-size: 16px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* Mensaje de Comprensión Rápida (Semáforo de Salud) */
+  .status-indicator {
+    margin-top: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 10px;
+  }
+
+  .status-good {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--patient-green);
+  }
+
+  /* Sección de Gráfico / Línea de Tendencia Simplificada */
+  .trend-section {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 20px;
+  }
+
+  .trend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .trend-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .live-pulse {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--patient-green);
+    font-weight: 700;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--patient-green);
+    border-radius: 50%;
+    animation: blink 1.2s infinite;
+  }
+
+  @keyframes blink {
+    0% { opacity: 0.3; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.2); }
+    100% { opacity: 0.3; transform: scale(0.9); }
+  }
+
+  .canvas-holder {
+    width: 100%;
+    height: 100px;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Footer informativo del Banner */
+  .banner-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .footer-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .footer-tag strong {
+    color: var(--text-main);
+  }
+</style>
+</head>
+<body>
+
+  <div class="banner-3d-container">
+    <!-- ENCABEZADO -->
+    <div class="banner-header">
+      <div class="logo-section">
+        <h1><span>🧬</span> BioSync X1</h1>
+        <p>Ecosistema IoT Subcutáneo de Monitoreo Continuo</p>
+      </div>
+      <div class="view-badge">INTERFAZ UNIFICADA MÉDICO-PACIENTE</div>
+    </div>
+
+    <!-- CUADRO DE MÉTRICAS PRINCIPALES -->
+    <div class="dashboard-grid">
+      
+      <!-- GLUCOSA (Comprensible para ambos) -->
+      <div class="metric-card card-glucose">
+        <div class="label-container">
+          <span class="patient-label">Tu Azúcar en Sangre</span>
+          <span class="doctor-label">Glucemia Intersticial (Tiempo Real)</span>
+        </div>
+        <div class="value-display">
+          <span class="main-number" id="glucose-val">96</span>
+          <span class="unit">mg/dL</span>
+        </div>
+        <div class="status-indicator status-good">
+          <span style="width:6px; height:6px; background:var(--patient-green); border-radius:50%;"></span>
+          Nivel Excelente (Rango Óptimo)
+        </div>
+      </div>
+
+      <!-- INSULINA (Comprensible para ambos) -->
+      <div class="metric-card card-insulin">
+        <div class="label-container">
+          <span class="patient-label">Tu Nivel de Insulina</span>
+          <span class="doctor-label">Insulinemia Estimada Basal</span>
+        </div>
+        <div class="value-display">
+          <span class="main-number" id="insulin-val">8.4</span>
+          <span class="unit">μU/mL</span>
+        </div>
+        <div class="status-indicator status-good" style="color:var(--amber-glow); background:rgba(245,158,11,0.1);">
+          <span style="width:6px; height:6px; background:var(--amber-glow); border-radius:50%;"></span>
+          Respuesta Metabólica Normal
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GRÁFICO DE TENDENCIA SIMPLIFICADO -->
+    <div class="trend-section">
+      <div class="trend-header">
+        <span class="trend-title">CURVA DE ESTABILIDAD (ÚLTIMOS 30 MINUTOS)</span>
+        <div class="live-pulse">
+          <div class="pulse-dot"></div> TELEMETRÍA EN VIVO
+        </div>
+      </div>
+      <div class="canvas-holder">
+        <canvas id="miniTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- FOOTER DEL BANNER -->
+    <div class="banner-footer">
+      <div class="footer-tag">Paciente: <strong>Alejandro Torres (54 años)</strong></div>
+      <div class="footer-tag">Estado del Microchip: <strong style="color:var(--patient-green);">Conectado vía NFC</strong></div>
+    </div>
+  </div>
+
+<script>
+  // Selección de elementos
+  const gluText = document.getElementById('glucose-val');
+  const insText = document.getElementById('insulin-val');
+  const canvas = document.getElementById('miniTrendChart');
+  const ctx = canvas.getContext('2d');
+
+  // Ajustar tamaño del lienzo de forma dinámica
+  function resize() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+  }
+  resize();
+
+  // Datos iniciales de la curva para mantener una fluctuación suave
+  let points = [94, 95, 93, 96, 94, 95, 97, 96, 94, 96, 95, 96];
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Estilo de la línea
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Gradiente debajo de la línea
+    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, 'rgba(16, 185, 129, 0.15)');
+    grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+    ctx.beginPath();
+    const spacing = canvas.width / (points.length - 1);
+
+    points.forEach((val, i) => {
+      // Mapeo simple de valores (80 a 110) al alto del canvas
+      const y = canvas.height - ((val - 80) / (110 - 80)) * canvas.height;
+      const x = i * spacing;
+      if(i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+
+    ctx.stroke();
+    
+    // Rellenar área inferior
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.lineTo(0, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // Simulación en tiempo real (fluctuación médica real y controlada)
+  setInterval(() => {
+    // Cambios sutiles y realistas de glucosa y de insulina
+    const nextGlucose = Math.round(93 + Math.random() * 6);
+    const nextInsulin = (8.0 + Math.random() * 0.9).toFixed(1);
+
+    gluText.textContent = nextGlucose;
+    insText.textContent = nextInsulin;
+
+    // Actualizar gráfico de tendencia
+    points.push(nextGlucose);
+    points.shift();
+    draw();
+  }, 2000);
+
+  // Render inicial rápido
+  setTimeout(draw, 100);
+</script>
+</body>
+</html>
