@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VitaChip — Dashboard Médico en Vivo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg:        #080f17;
+    --card:      rgba(13, 22, 36, 0.80);
+    --border:    rgba(80, 160, 255, 0.12);
+    --emerald:   #34d399;
+    --amber:     #fbbf24;
+    --blue:      #4a9eff;
+    --teal:      #3ecfcf;
+    --text-hi:   #e8f4ff;
+    --text-mid:  #9dbde8;
+    --text-lo:   #4a6a96;
+    --font:      'DM Sans', sans-serif;
+    --mono:      'Space Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text-hi);
+    min-height: 100vh;
+    padding: 24px 20px 36px;
+    perspective: 1000px;
+    background-image:
+      radial-gradient(ellipse 70% 50% at 20% 10%, rgba(24,80,160,0.20) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 85%, rgba(14,60,120,0.16) 0%, transparent 55%);
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(circle, rgba(74,158,255,0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    padding: 32px 32px 36px;
+    backdrop-filter: blur(24px);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.05);
+    transform: rotateX(4deg) rotateY(-1.5deg);
+    transition: transform 0.55s cubic-bezier(0.22,1,0.36,1), box-shadow 0.55s;
+  }
+  .panel:hover {
+    transform: rotateX(0) rotateY(0) translateY(-4px);
+    box-shadow: 0 40px 120px rgba(0,0,0,0.70), 0 0 40px rgba(74,158,255,0.12);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 26px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; }
+
+  .logo {
+    width: 46px; height: 46px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, var(--teal), var(--blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: 0 0 22px rgba(62,207,207,0.30);
+    flex-shrink: 0;
+  }
+
+  .brand-text h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+  .brand-text p  { font-size: 0.70rem; color: var(--text-mid); margin-top: 1px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 0.70rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    border: 1px solid transparent;
+  }
+  .badge-live   { background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.25); color: var(--emerald); }
+  .badge-db     { background: rgba(74,158,255,0.10); border-color: rgba(74,158,255,0.22); color: var(--blue); }
+  .badge-clock  { font-family: var(--mono); font-size: 0.68rem; color: var(--text-mid); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+
+  /* ── CONEXIÓN STATUS ── */
+  .conn-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    margin-bottom: 22px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: all 0.4s;
+  }
+  .conn-bar.connecting { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.20); color: var(--amber); }
+  .conn-bar.connected  { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.20); color: var(--emerald); }
+  .conn-bar.error      { background: rgba(255,100,100,0.08); border-color: rgba(255,100,100,0.20); color: #ff8080; }
+
+  /* ── PATIENT ── */
+  .patient {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 16px;
+    margin-bottom: 22px;
+  }
+  .patient-av { font-size: 1.1rem; }
+  .patient-name { font-size: 0.88rem; font-weight: 600; }
+  .patient-meta { font-size: 0.68rem; color: var(--text-mid); margin-top: 1px; }
+  .patient-id   { font-family: var(--mono); font-size: 0.62rem; color: var(--text-lo); margin-left: auto; }
+
+  /* ── SECTION LABEL ── */
+  .sec-label {
+    font-size: 0.60rem; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase; color: var(--text-lo);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .sec-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  /* ── METRICS GRID ── */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media(max-width:560px){ .metrics { grid-template-columns: 1fr; } }
+
+  .mcard {
+    background: rgba(10,18,30,0.80);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px 20px 18px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .mcard:hover { border-color: rgba(80,160,255,0.28); transform: translateY(-2px); }
+  .mcard::before {
+    content: '';
+    position: absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--ac), transparent);
+    opacity: 0.7;
+  }
+  .mcard::after {
+    content: '';
+    position: absolute; top:-30px; right:-30px;
+    width: 90px; height: 90px; border-radius: 50%;
+    background: var(--ac); opacity: 0.05; filter: blur(28px);
+  }
+  .mcard.glucose { --ac: var(--emerald); }
+  .mcard.insulin { --ac: var(--amber); }
+
+  .mcard-icon { font-size: 1.1rem; margin-bottom: 8px; }
+  .mcard-plabel { font-size: 0.82rem; font-weight: 600; color: var(--text-hi); line-height: 1.2; }
+  .mcard-dlabel { font-size: 0.60rem; color: var(--text-lo); font-style: italic; margin: 2px 0 10px; }
+
+  .mcard-val {
+    font-family: var(--mono);
+    font-size: 2.8rem; font-weight: 700;
+    letter-spacing: -0.04em; line-height: 1;
+    transition: color 0.3s;
+  }
+  .mcard.glucose .mcard-val { color: var(--emerald); }
+  .mcard.insulin .mcard-val { color: var(--amber); }
+
+  .mcard-unit { font-family: var(--mono); font-size: 0.70rem; color: var(--text-lo); margin-top: 3px; }
+
+  .mbadge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 10px; padding: 4px 10px;
+    border-radius: 100px; font-size: 0.65rem; font-weight: 600;
+  }
+  .mbadge.g { background: rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.25); color: var(--emerald); }
+  .mbadge.a { background: rgba(251,191,36,0.10);  border:1px solid rgba(251,191,36,0.25);  color: var(--amber); }
+  .mbadge .dot { width:5px; height:5px; animation: none; box-shadow: none; }
+
+  /* Sparkline */
+  .spark { margin-top: 12px; height: 34px; width: 100%; border-radius: 6px; overflow: hidden; }
+
+  /* ── BOTTOM GRID ── */
+  .bottom { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-top: 2px; }
+  @media(max-width:620px){ .bottom { grid-template-columns: 1fr; } }
+
+  /* Vitals */
+  .vitals { display: flex; flex-direction: column; gap: 9px; }
+  .vitem {
+    display: flex; align-items: center; gap: 11px;
+    background: rgba(10,18,30,0.80);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px;
+    transition: border-color 0.25s;
+  }
+  .vitem:hover { border-color: rgba(80,160,255,0.25); }
+  .vicon { font-size: 1rem; width: 26px; text-align: center; flex-shrink: 0; }
+  .vbody { flex: 1; }
+  .vname { font-size: 0.65rem; color: var(--text-lo); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+  .vval  { font-family: var(--mono); font-size: 0.92rem; font-weight: 700; color: var(--text-hi); margin-top: 1px; }
+  .vstatus { font-size: 0.60rem; font-weight: 600; padding: 2px 7px; border-radius: 100px; background: rgba(52,211,153,0.10); color: var(--emerald); border: 1px solid rgba(52,211,153,0.22); white-space: nowrap; }
+
+  /* Chart card */
+  .chart-card {
+    background: rgba(10,18,30,0.80);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 18px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .chart-hdr { display: flex; align-items: flex-start; justify-content: space-between; }
+  .chart-title { font-size: 0.78rem; font-weight: 600; color: var(--text-mid); }
+  .chart-sub   { font-size: 0.60rem; color: var(--text-lo); font-style: italic; margin-top: 1px; }
+  .legend { display: flex; gap: 12px; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 0.63rem; color: var(--text-lo); }
+  .leg-dot  { width: 8px; height: 3px; border-radius: 2px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 22px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .footer-txt { font-size: 0.62rem; color: var(--text-lo); line-height: 1.6; }
+  .footer-txt strong { color: var(--text-mid); font-weight: 500; }
+  .last-sync { font-family: var(--mono); font-size: 0.62rem; color: var(--text-lo); }
+
+  /* ── QR HINT ── */
+  .qr-hint {
+    position: fixed; bottom: 20px; right: 20px;
+    background: rgba(13,22,36,0.95);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.65rem; color: var(--text-mid);
+    backdrop-filter: blur(12px);
+    z-index: 99;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .qr-hint strong { color: var(--text-hi); }
+
+  canvas { display: block; }
+
+  /* ── ALERT BANNER ── */
+  .alert-banner {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    border: 1px solid transparent;
+    animation: alertPulse 1.2s ease-in-out infinite alternate;
+  }
+  .alert-banner.show { display: flex; }
+  .alert-banner.warn {
+    background: rgba(251,191,36,0.10);
+    border-color: rgba(251,191,36,0.40);
+    animation: none;
+  }
+  .alert-banner.crit {
+    background: rgba(220,38,38,0.12);
+    border-color: rgba(220,38,38,0.50);
+  }
+  @keyframes alertPulse {
+    from { box-shadow: 0 0 10px rgba(220,38,38,0.2); border-color: rgba(220,38,38,0.3); }
+    to   { box-shadow: 0 0 30px rgba(220,38,38,0.7); border-color: rgba(220,38,38,0.8); }
+  }
+  .alert-icon { font-size: 1.8rem; flex-shrink: 0; }
+  .alert-body { flex: 1; }
+  .alert-title { font-size: 0.88rem; font-weight: 700; letter-spacing: 0.04em; }
+  .alert-banner.warn .alert-title { color: #fbbf24; }
+  .alert-banner.crit .alert-title { color: #f87171; }
+  .alert-detail { font-size: 0.70rem; margin-top: 2px; }
+  .alert-banner.warn .alert-detail { color: rgba(251,191,36,0.75); }
+  .alert-banner.crit .alert-detail { color: rgba(248,113,113,0.75); }
+  .alert-metric { font-family: var(--mono); font-size: 1.0rem; font-weight: 700; flex-shrink: 0; }
+  .alert-banner.warn .alert-metric { color: #fbbf24; }
+  .alert-banner.crit .alert-metric { color: #f87171; }
+  .alert-dismiss { font-size: 0.65rem; color: var(--text-lo); cursor: pointer; flex-shrink: 0; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; }
+  .alert-dismiss:hover { color: var(--text-hi); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="panel" id="panel">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">🧬</div>
+      <div class="brand-text">
+        <h1>VitaChip · BioSync X1</h1>
+        <p>Dashboard Médico — Datos en Tiempo Real</p>
+      </div>
+    </div>
+    <div class="badges">
+      <div class="badge badge-live"><span class="dot"></span>EN VIVO</div>
+      <div class="badge badge-db">🔥 Firebase</div>
+      <div class="badge badge-clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- CONN STATUS -->
+  <div class="conn-bar connecting" id="connBar">
+    ⏳ Conectando con Firebase — VitaChip Realtime Database...
+  </div>
+
+  <!-- PATIENT -->
+  <div class="patient">
+    <div class="patient-av">👤</div>
+    <div>
+      <div class="patient-name">Carlos A. Martínez López</div>
+      <div class="patient-meta">Diabético Tipo 2 · 54 años · Monitoreo Continuo Activo</div>
+    </div>
+    <div class="patient-id">ID: #MED-00274-NI</div>
+  </div>
+
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner" id="alertBanner">
+    <div class="alert-icon" id="alertIcon">⚠️</div>
+    <div class="alert-body">
+      <div class="alert-title" id="alertTitle">ADVERTENCIA</div>
+      <div class="alert-detail" id="alertDetail">Valor fuera del rango óptimo</div>
+    </div>
+    <div class="alert-metric" id="alertMetric"></div>
+    <div class="alert-dismiss" id="alertDismiss">✕ Cerrar</div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="sec-label">Métricas Principales — Recibidas del Chip</div>
+  <div class="metrics">
+
+    <!-- Glucose -->
+    <div class="mcard glucose">
+      <div class="mcard-icon">🩸</div>
+      <div class="mcard-plabel">Tu Azúcar en Sangre</div>
+      <div class="mcard-dlabel">Glucemia Intersticial en Tiempo Real</div>
+      <div class="mcard-val" id="glu">--</div>
+      <div class="mcard-unit">mg/dL — Glucosa Capilar Estimada</div>
+      <div class="mbadge g"><span class="dot" style="background:var(--emerald)"></span>Nivel Excelente (Rango Óptimo)</div>
+      <canvas class="spark" id="sparkG" height="34"></canvas>
+    </div>
+
+    <!-- Insulin -->
+    <div class="mcard insulin">
+      <div class="mcard-icon">💉</div>
+      <div class="mcard-plabel">Tu Nivel de Insulina</div>
+      <div class="mcard-dlabel">Insulinemia Estimada Basal (μU/mL)</div>
+      <div class="mcard-val" id="ins">--</div>
+      <div class="mcard-unit">μU/mL — Insulina Basal Plasmática</div>
+      <div class="mbadge a"><span class="dot" style="background:var(--amber)"></span>Nivel Óptimo (Fase Basal)</div>
+      <canvas class="spark" id="sparkI" height="34"></canvas>
+    </div>
+  </div>
+
+  <!-- BOTTOM -->
+  <div class="sec-label" style="margin-top:6px;">Signos Vitales &amp; Telemetría Firebase</div>
+  <div class="bottom">
+
+    <!-- Vitals -->
+    <div class="vitals">
+      <div class="vitem">
+        <div class="vicon">❤️</div>
+        <div class="vbody">
+          <div class="vname">Frec. Cardíaca</div>
+          <div class="vval" id="hr">-- bpm</div>
+        </div>
+        <div class="vstatus">Normal</div>
+      </div>
+      <div class="vitem">
+        <div class="vicon">🫁</div>
+        <div class="vbody">
+          <div class="vname">SpO₂ Saturación</div>
+          <div class="vval" id="spo2">-- %</div>
+        </div>
+        <div class="vstatus">Óptimo</div>
+      </div>
+      <div class="vitem">
+        <div class="vicon">🌡️</div>
+        <div class="vbody">
+          <div class="vname">Temperatura</div>
+          <div class="vval" id="temp">-- °C</div>
+        </div>
+        <div class="vstatus">Normal</div>
+      </div>
+      <div class="vitem">
+        <div class="vicon">🔋</div>
+        <div class="vbody">
+          <div class="vname">Batería Biosensor</div>
+          <div class="vval" id="bat">-- %</div>
+        </div>
+        <div class="vstatus">Estable</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-title">Telemetría Glucosa — Datos Firebase en Vivo</div>
+          <div class="chart-sub">Cada punto = lectura real del chip BioSync X1</div>
+        </div>
+        <div class="legend">
+          <div class="leg-item"><span class="leg-dot" style="background:var(--emerald)"></span>Glucosa</div>
+          <div class="leg-item"><span class="leg-dot" style="background:var(--amber)"></span>Insulina</div>
+        </div>
+      </div>
+      <canvas id="mainChart" height="155" style="width:100%;border-radius:8px;"></canvas>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-txt">
+      <strong>VitaChip · BioForge</strong> · Datos clínicos recibidos en tiempo real desde Firebase.<br>
+      Supervisión: <strong>Dr. Alejandro Vega, MD</strong> · Sistema IoT Médico Implantable
+    </div>
+    <div class="last-sync">Última lectura: <span id="lastSync">--:--:--</span></div>
+  </div>
+
+</div><!-- /panel -->
+</div><!-- /wrap -->
+
+<!-- QR hint -->
+<div class="qr-hint">📱 <strong>Mismo dashboard</strong> en tu celular — mismos datos Firebase</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const FB_URL = 'https://vitalchip-e11c7-default-rtdb.firebaseio.com';
+
+  // ── Buffers para gráficas ──
+  const BUFFER = 24;
+  const gluBuf = Array(BUFFER).fill(96);
+  const insBuf = Array(BUFFER).fill(8.4);
+
+  // ── Clock ──
+  function tick() {
+    const ts = new Date().toLocaleTimeString('es-NI', { hour12: false });
+    document.getElementById('clock').textContent = ts;
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // ── Dashboard Alert System ──
+  let dashAlertTimer = null;
+  let lastEstado = 'NOMINAL';
+
+  function checkDashboardAlert(data) {
+    const banner  = document.getElementById('alertBanner');
+    const icon    = document.getElementById('alertIcon');
+    const title   = document.getElementById('alertTitle');
+    const detail  = document.getElementById('alertDetail');
+    const metric  = document.getElementById('alertMetric');
+    const estado  = data.estado || 'NOMINAL';
+
+    // Solo mostrar si cambió el estado o es crítico
+    if (estado === 'NOMINAL') {
+      banner.classList.remove('show','warn','crit');
+      lastEstado = estado;
+      return;
+    }
+
+    if (estado === lastEstado && estado !== 'CRITICO') return;
+    lastEstado = estado;
+
+    if (estado === 'CRITICO') {
+      banner.className = 'alert-banner show crit';
+      icon.textContent = '🚨';
+      // Determinar cuál métrica es crítica
+      if (data.glucosa < 70) {
+        title.textContent  = 'HIPOGLUCEMIA CRÍTICA';
+        detail.textContent = 'Nivel de azúcar peligrosamente bajo — Acción inmediata requerida';
+        metric.textContent = data.glucosa + ' mg/dL';
+      } else if (data.glucosa > 180) {
+        title.textContent  = 'HIPERGLUCEMIA CRÍTICA';
+        detail.textContent = 'Nivel de azúcar peligrosamente alto — Revisar medicación';
+        metric.textContent = data.glucosa + ' mg/dL';
+      } else if (data.frecuencia_cardiaca > 130 || data.frecuencia_cardiaca < 40) {
+        title.textContent  = 'ARRITMIA DETECTADA';
+        detail.textContent = 'Ritmo cardíaco fuera del rango seguro';
+        metric.textContent = data.frecuencia_cardiaca + ' bpm';
+      } else if (data.temperatura > 38.5) {
+        title.textContent  = 'FIEBRE ALTA DETECTADA';
+        detail.textContent = 'Temperatura corporal en nivel de riesgo';
+        metric.textContent = data.temperatura + '°C';
+      } else {
+        title.textContent  = 'ALERTA CRÍTICA';
+        detail.textContent = 'Parámetro vital fuera del rango seguro';
+        metric.textContent = data.estado;
+      }
+    } else if (estado === 'ADVERTENCIA') {
+      banner.className = 'alert-banner show warn';
+      icon.textContent = '⚠️';
+      title.textContent  = 'VALOR FUERA DE RANGO ÓPTIMO';
+      detail.textContent = 'Monitorear de cerca. Glucosa: ' + data.glucosa + ' mg/dL';
+      metric.textContent = data.glucosa + ' mg/dL';
+    }
+
+    // Auto-cerrar advertencias después de 8s
+    if (dashAlertTimer) clearTimeout(dashAlertTimer);
+    if (estado === 'ADVERTENCIA') {
+      dashAlertTimer = setTimeout(() => banner.classList.remove('show','warn','crit'), 8000);
+    }
+  }
+
+  // Dismiss button
+  document.getElementById('alertDismiss').addEventListener('click', () => {
+    document.getElementById('alertBanner').classList.remove('show','warn','crit');
+  });
+
+  // ── Firebase polling (SSE no disponible sin SDK, usamos polling cada 2s) ──
+  const connBar = document.getElementById('connBar');
+  let connected = false;
+  let errorCount = 0;
+
+  async function fetchLive() {
+    try {
+      const res = await fetch(`${FB_URL}/biosync/live.json`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (!data) return;
+
+      // ── Actualizar UI ──
+      document.getElementById('glu').textContent  = data.glucosa   ?? '--';
+      document.getElementById('ins').textContent  = data.insulina  ?? '--';
+      document.getElementById('hr').textContent   = (data.frecuencia_cardiaca ?? '--') + ' bpm';
+      document.getElementById('spo2').textContent = (data.spo2     ?? '--') + ' %';
+      document.getElementById('temp').textContent = (data.temperatura ?? '--') + ' °C';
+      document.getElementById('bat').textContent  = (data.bateria  ?? '--') + ' %';
+      document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('es-NI', { hour12: false });
+
+      // ── Sistema de alertas ──
+      checkDashboardAlert(data);
+
+
+
+      // ── Buffers de gráfica ──
+      if (data.glucosa)  { gluBuf.push(+data.glucosa);  gluBuf.shift(); }
+      if (data.insulina) { insBuf.push(+data.insulina); insBuf.shift(); }
+
+      drawSparkline(document.getElementById('sparkG'), gluBuf, '#34d399', 88, 104);
+      drawSparkline(document.getElementById('sparkI'), insBuf, '#fbbf24',  6,  11);
+      resizeMain(); drawMain();
+
+      // ── Estado conexión ──
+      if (!connected) {
+        connected = true; errorCount = 0;
+        connBar.className = 'conn-bar connected';
+        connBar.textContent = '✅ Conectado a Firebase — VitaChip Realtime Database · Recibiendo datos del chip en vivo';
+      }
+
+    } catch(e) {
+      errorCount++;
+      connected = false;
+      connBar.className = 'conn-bar ' + (errorCount < 3 ? 'connecting' : 'error');
+      connBar.textContent = errorCount < 3
+        ? '⏳ Esperando datos del chip BioSync X1...'
+        : '❌ Sin conexión a Firebase — Verifica que el chip (biosensor-vitalchip.html) esté abierto';
+    }
+  }
+
+  // Polling cada 2 segundos
+  fetchLive();
+  setInterval(fetchLive, 2000);
+
+  // ── Sparkline ──
+  function drawSparkline(canvas, data, color, min, max) {
+    canvas.width  = canvas.offsetWidth || 280;
+    canvas.height = 34;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
+    const n = data.length;
+    const xp = i => (i / (n-1)) * W;
+    const yp = v => H - 4 - ((v - min) / (max - min)) * (H - 8);
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, color + '55');
+    grad.addColorStop(1, color + '05');
+
+    ctx.beginPath();
+    ctx.moveTo(xp(0), yp(data[0]));
+    for (let i = 1; i < n; i++) ctx.lineTo(xp(i), yp(data[i]));
+    ctx.lineTo(xp(n-1), H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(xp(0), yp(data[0]));
+    for (let i = 1; i < n; i++) ctx.lineTo(xp(i), yp(data[i]));
+    ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  // ── Main Chart ──
+  const mc  = document.getElementById('mainChart');
+  const mct = mc.getContext('2d');
+
+  function resizeMain() {
+    mc.width  = Math.floor((mc.parentElement.getBoundingClientRect().width || 400) - 36);
+    mc.height = 155;
+  }
+
+  function drawMain() {
+    const W = mc.width, H = mc.height;
+    mct.clearRect(0, 0, W, H);
+    const pL=8, pR=8, pT=10, pB=22;
+    const w = W-pL-pR, h = H-pT-pB;
+    const gMin=88, gMax=104, iMin=6, iMax=11;
+
+    // Grid
+    mct.strokeStyle = 'rgba(80,120,180,0.09)'; mct.lineWidth = 1;
+    for (let i=0;i<=4;i++){
+      const y = pT + (h/4)*i;
+      mct.beginPath(); mct.moveTo(pL,y); mct.lineTo(W-pR,y); mct.stroke();
+    }
+
+    // Zona óptima glucosa
+    const yOT = pT + h*(1-(99-gMin)/(gMax-gMin));
+    const yOB = pT + h*(1-(93-gMin)/(gMax-gMin));
+    mct.fillStyle = 'rgba(52,211,153,0.05)';
+    mct.fillRect(pL, yOT, w, yOB-yOT);
+
+    const xp = i => pL + (i/(BUFFER-1))*w;
+    const yG = v => pT + h*(1-(v-gMin)/(gMax-gMin));
+    const yI = v => pT + h*(1-(v-iMin)/(iMax-iMin));
+
+    // Insulin fill
+    const iG = mct.createLinearGradient(0,pT,0,pT+h);
+    iG.addColorStop(0,'rgba(251,191,36,0.16)'); iG.addColorStop(1,'rgba(251,191,36,0.01)');
+    mct.beginPath(); mct.moveTo(xp(0),yI(insBuf[0]));
+    for(let i=1;i<BUFFER;i++) mct.lineTo(xp(i),yI(insBuf[i]));
+    mct.lineTo(xp(BUFFER-1),pT+h); mct.lineTo(pL,pT+h); mct.closePath();
+    mct.fillStyle=iG; mct.fill();
+
+    // Glucose fill
+    const gG = mct.createLinearGradient(0,pT,0,pT+h);
+    gG.addColorStop(0,'rgba(52,211,153,0.20)'); gG.addColorStop(1,'rgba(52,211,153,0.01)');
+    mct.beginPath(); mct.moveTo(xp(0),yG(gluBuf[0]));
+    for(let i=1;i<BUFFER;i++) mct.lineTo(xp(i),yG(gluBuf[i]));
+    mct.lineTo(xp(BUFFER-1),pT+h); mct.lineTo(pL,pT+h); mct.closePath();
+    mct.fillStyle=gG; mct.fill();
+
+    // Insulin line
+    mct.beginPath(); mct.moveTo(xp(0),yI(insBuf[0]));
+    for(let i=1;i<BUFFER;i++) mct.lineTo(xp(i),yI(insBuf[i]));
+    mct.strokeStyle='#fbbf24'; mct.lineWidth=2; mct.lineJoin='round'; mct.stroke();
+
+    // Glucose line
+    mct.beginPath(); mct.moveTo(xp(0),yG(gluBuf[0]));
+    for(let i=1;i<BUFFER;i++) mct.lineTo(xp(i),yG(gluBuf[i]));
+    mct.strokeStyle='#34d399'; mct.lineWidth=2.5; mct.lineJoin='round'; mct.stroke();
+
+    // Live dots
+    [[xp(BUFFER-1),yG(gluBuf[BUFFER-1]),'#34d399',4.5],[xp(BUFFER-1),yI(insBuf[BUFFER-1]),'#fbbf24',3.8]].forEach(([x,y,c,r])=>{
+      mct.beginPath(); mct.arc(x,y,r,0,Math.PI*2);
+      mct.fillStyle=c; mct.shadowColor=c; mct.shadowBlur=10; mct.fill(); mct.shadowBlur=0;
+    });
+
+    // Time labels
+    mct.fillStyle='rgba(74,106,150,0.7)'; mct.font='10px "Space Mono",monospace'; mct.textAlign='center';
+    const now = new Date();
+    [0,6,12,18,23].forEach(idx=>{
+      const past = new Date(now.getTime()-(BUFFER-1-idx)*2000);
+      mct.fillText(past.toLocaleTimeString('es-NI',{hour12:false,hour:'2-digit',minute:'2-digit'}),xp(idx),H-5);
+    });
+  }
+
+  window.addEventListener('resize',()=>{ resizeMain(); drawMain(); });
+  resizeMain(); drawMain();
+
+  // ── Panel mouse tilt ──
+  const panel = document.getElementById('panel');
+  panel.addEventListener('mousemove', e => {
+    const r = panel.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width/2)  / (r.width/2);
+    const dy = (e.clientY - r.top  - r.height/2) / (r.height/2);
+    panel.style.transform = `rotateX(${-dy*4}deg) rotateY(${dx*3}deg) translateY(-4px)`;
+  });
+  panel.addEventListener('mouseleave',()=>{
+    panel.style.transform = 'rotateX(4deg) rotateY(-1.5deg)';
+  });
+
+})();
+</script>
+</body>
+</html>
